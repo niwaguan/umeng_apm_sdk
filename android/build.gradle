@@ -24,6 +24,7 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
+    namespace 'com.umeng.umeng_apm_sdk'
     compileSdkVersion 29
 
     defaultConfig {
