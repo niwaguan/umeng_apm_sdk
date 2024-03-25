@@ -1,21 +1,20 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/widgets.dart';
+import 'dart:io';
 
-import 'package:umeng_apm_sdk/src/core/apm_shared.dart';
-import 'package:umeng_apm_sdk/src/core/apm_typedef.dart';
-import 'package:umeng_apm_sdk/src/recorder/recorder.dart';
-import 'package:umeng_apm_sdk/src/core/apm_report_log.dart';
-import 'package:umeng_apm_sdk/src/core/apm_setup_trace.dart';
-import 'package:umeng_apm_sdk/src/core/apm_schedule_center.dart';
+import 'package:flutter/widgets.dart';
+import 'package:umeng_apm_sdk/src/core/apm_cloud_config_manager.dart';
 import 'package:umeng_apm_sdk/src/core/apm_flutter_error.dart';
 import 'package:umeng_apm_sdk/src/core/apm_method_channel.dart';
-import 'package:umeng_apm_sdk/src/core/apm_cloud_config_manager.dart';
+import 'package:umeng_apm_sdk/src/core/apm_report_log.dart';
+import 'package:umeng_apm_sdk/src/core/apm_schedule_center.dart';
+import 'package:umeng_apm_sdk/src/core/apm_setup_trace.dart';
+import 'package:umeng_apm_sdk/src/core/apm_shared.dart';
+import 'package:umeng_apm_sdk/src/core/apm_typedef.dart';
 import 'package:umeng_apm_sdk/src/core/apm_widgets_flutter_binding.dart';
-
-import 'package:umeng_apm_sdk/src/utils/helpers.dart';
-import 'package:umeng_apm_sdk/src/trace/exception_trace.dart';
 import 'package:umeng_apm_sdk/src/observer/navigator_observer.dart';
+import 'package:umeng_apm_sdk/src/recorder/recorder.dart';
+import 'package:umeng_apm_sdk/src/trace/exception_trace.dart';
+import 'package:umeng_apm_sdk/src/utils/helpers.dart';
 
 enum UmengApmEnv { Release, Alpha, Beta, RC, Dev }
 
@@ -168,7 +167,14 @@ class UmengApmSdk extends ApmScheduleCenter {
     return isInited;
   }
 
-  init({AppRunner? appRunner}) {
+  /// 初始化
+  /// [beforeRunApp] flutter 引擎初始化完毕，[appRunner]之前
+  /// [appRunner] 构建App根Widget
+  /// [afterRunApp] 根Widget构建完毕，apm sdk初始化完成
+  init(
+      {AppRunner? appRunner,
+      AppRunnerHook? beforeRunApp,
+      AppRunnerHook? afterRunApp}) async {
     if (_umengApmInited) {
       warnLog('SDK 重复实例化，停止逻辑执行');
       return;
@@ -178,7 +184,15 @@ class UmengApmSdk extends ApmScheduleCenter {
         if (initFlutterBinding != null) {
           initFlutterBinding!();
         } else {
-          ApmWidgetsFlutterBinding.ensureInitialized();
+          if (enableTrackingPageFps == true || enableTrackingPagePerf == true) {
+            ApmWidgetsFlutterBinding.ensureInitialized();
+          } else {
+            WidgetsFlutterBinding.ensureInitialized();
+          }
+        }
+
+        if (beforeRunApp != null) {
+          await beforeRunApp();
         }
 
         if (appRunner != null) {
@@ -221,6 +235,10 @@ class UmengApmSdk extends ApmScheduleCenter {
               t.cancel();
             }
           });
+        }
+
+        if (afterRunApp != null) {
+          await afterRunApp();
         }
       });
     }, (exception, stack) {
